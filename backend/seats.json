@@ -1,14 +1,14 @@
 {
-    "1": {
-        "seatId": 1,
-        "status": "AVAILABLE",
-        "userId": null,
-        "awayChangedAt": null
-    },
-    "2": {
-        "seatId": 2,
-        "status": "AVAILABLE",
-        "userId": null,
-        "awayChangedAt": null
-    }
+  "1": {
+    "seatId": 1,
+    "status": "OCCUPIED",
+    "userId": "22311894",
+    "awayChangedAt": null
+  },
+  "2": {
+    "seatId": 2,
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null
+  }
 }
