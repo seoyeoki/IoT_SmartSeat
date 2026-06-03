@@ -130,7 +130,7 @@ def on_message(client, userdata, msg):
         print(f"[MQTT 에러]: {e}")
 
 
-# 6-2. 대망의 3단계 자동 순찰 감시 알고리즘 (핵심 로직)
+# 6-2. 3단계 자동 순찰 감시 알고리즘 (핵심 로직)
 def check_away_seats():
     with app.app_context():
         seats = load_seats()
@@ -150,10 +150,9 @@ def check_away_seats():
             away_time = datetime.strptime(away_str.replace('T', ' ')[:19], "%Y-%m-%d %H:%M:%S")
             alert_time = datetime.strptime(alert_str.replace('T', ' ')[:19], "%Y-%m-%d %H:%M:%S") if alert_str else None
 
-            # ----------------------------------------------------
+
             # [규칙 1] 자리를 비운 지 1시간이 지났을 때 -> 알람 발송 및 상태 변경
-            # 💡 시연 테스트용: 10초 (실제 운영: timedelta(minutes=60))
-            # ----------------------------------------------------
+            # 시연 테스트용: 10초 (실제 운영: timedelta(minutes=60))
             if status == "AWAY" and not alert_time:
                 if now - away_time > timedelta(seconds=10): 
                     print(f"[알람 발송] {seatId}번 사용자에게 스마트폰 알람을 보냅니다: '자리를 계속 사용하시겠습니까?'")
@@ -161,10 +160,9 @@ def check_away_seats():
                     info["alertSentAt"] = now.strftime("%Y-%m-%dT%H:%M:%S")
                     updated = True
 
-            # ----------------------------------------------------
+
             # [규칙 2] 알람을 보냈는데 10분 동안 묵묵부답일 때 -> 즉시 강제 반납
-            # 💡 시연 테스트용: 10초 (실제 운영: timedelta(minutes=10))
-            # ----------------------------------------------------
+            # 시연 테스트용: 10초 (실제 운영: timedelta(minutes=10))
             elif status == "AWAY_ALERTED" and alert_time:
                 if now - alert_time > timedelta(seconds=20):
                     print(f"[강제 반납 - 미응답] {seatId}번 사용자 10분 동안 응답 없음! 자리를 강제 반납시킵니다.")
@@ -174,10 +172,9 @@ def check_away_seats():
                     info["alertSentAt"] = None
                     updated = True
 
-            # ----------------------------------------------------
+
             # [규칙 3]계속 사용한다 해놓고 총 비워둔 지 1시간 반이 넘었을 때 -> 최종 강제 반납
-            # 💡 시연 테스트용: 30초 (실제 운영: timedelta(minutes=90))
-            # ----------------------------------------------------
+            # 시연 테스트용: 30초 (실제 운영: timedelta(minutes=90))
             if status == "AWAY" and alert_str is None: # 알람을 한 번 거쳤다가 계속 사용을 눌러 리셋된 상태
                 if now - away_time > timedelta(seconds=40):
                     print(f"[강제 반납 - 시간 초과] {seatId}번 자리 비운 지 1시간 30분 초과! 무조건 강제 반납 처리합니다.")
