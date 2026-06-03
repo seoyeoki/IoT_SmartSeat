@@ -162,7 +162,7 @@ def check_away_seats():
 
 
             # [규칙 2] 알람을 보냈는데 10분 동안 묵묵부답일 때 -> 즉시 강제 반납
-            # 시연 테스트용: 10초 (실제 운영: timedelta(minutes=10))
+            # 시연 테스트용: 20초 (실제 운영: timedelta(minutes=10))
             elif status == "AWAY_ALERTED" and alert_time:
                 if now - alert_time > timedelta(seconds=20):
                     print(f"[강제 반납 - 미응답] {seatId}번 사용자 10분 동안 응답 없음! 자리를 강제 반납시킵니다.")
@@ -174,7 +174,7 @@ def check_away_seats():
 
 
             # [규칙 3]계속 사용한다 해놓고 총 비워둔 지 1시간 반이 넘었을 때 -> 최종 강제 반납
-            # 시연 테스트용: 30초 (실제 운영: timedelta(minutes=90))
+            # 시연 테스트용: 40초 (실제 운영: timedelta(minutes=90))
             if status == "AWAY" and alert_str is None: # 알람을 한 번 거쳤다가 계속 사용을 눌러 리셋된 상태
                 if now - away_time > timedelta(seconds=40):
                     print(f"[강제 반납 - 시간 초과] {seatId}번 자리 비운 지 1시간 30분 초과! 무조건 강제 반납 처리합니다.")
