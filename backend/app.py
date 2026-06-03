@@ -1,9 +1,11 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import json
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
+CORS(app)
 
 # 로그인 상태를 가정할 사용자 데이터
 MOCK_USER = {
