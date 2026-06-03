@@ -3,7 +3,8 @@
     "status": "AVAILABLE",
     "userId": null,
     "awayChangedAt": null,
-    "remainingMinutes": 180
+    "remainingMinutes": 180,
+    "alertSentAt": null
   },
   "2": {
     "status": "AVAILABLE",

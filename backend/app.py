@@ -3,22 +3,24 @@ from flask_cors import CORS
 import json
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
+import paho.mqtt.client as mqtt
 
 app = Flask(__name__)
 CORS(app)
 
-# 로그인 상태를 가정할 사용자 데이터
 MOCK_USER = {
-    "userId": "22311894",
-    "userName": "김서연"
+    "userId": "smartSeat",
+    "userName": "김00"
 }
 
-# seats.json 파일을 읽어오는 함수
+MQTT_BROKER = "broker.hivemq.com"
+MQTT_PORT = 1883
+MQTT_TOPIC = "internal/seats/event"
+
 def load_seats():
     with open('seats.json', 'r') as f:
         return json.load(f)
 
-# seats.json 파일에 데이터를 저장하는 함수
 def save_seats(data):
     with open('seats.json', 'w') as f:
         json.dump(data, f, indent=2)
@@ -33,142 +35,171 @@ def get_seats():
 @app.route('/api/me/seats/<seatId>/rentals', methods=['POST'])
 def rent_seat(seatId):
     seats = load_seats()
-    
-    # 만약 요청한 좌석 번호가 파일에 없으면 에러 반환
     if seatId not in seats:
         return jsonify({"message": "존재하지 않는 좌석입니다."}), 404
-        
-    # 이미 대여 중인 자리라면 에러 반환
     if seats[seatId]["status"] != "AVAILABLE":
         return jsonify({"message": "이미 사용 중인 좌석입니다."}), 400
 
-    # 대여 성공 처리 - 좌석 상태를 변경
     seats[seatId]["status"] = "OCCUPIED"
-    seats[seatId]["userId"] = MOCK_USER["userId"] # 가정한 사용자 학번 주입
-    
-    # 바뀐 데이터를 다시 파일에 저장
+    seats[seatId]["userId"] = MOCK_USER["userId"]
+    seats[seatId]["awayChangedAt"] = None
+    seats[seatId]["alertSentAt"] = None # 알람 발송 시간 초기화
     save_seats(seats)
-    
-    return jsonify({
-        "message": f"{seatId}번 좌석 대여가 완료되었습니다.",
-        "seat": seats[seatId]
-    }), 200
+    return jsonify({"message": f"{seatId}번 좌석 대여가 완료되었습니다.", "seat": seats[seatId]}), 200
 
-# 3. 자리 반납 기능 (PATCH /api/me/seats/<seatId>/rentals/return)
+# 3. 사용자가 알람창이나 화면에서 직접 [반납]을 누르는 통로 (PATCH)
 @app.route('/api/me/seats/<seatId>/rentals/return', methods=['PATCH'])
 def return_seat(seatId):
     seats = load_seats()
-    
-    # 존재하지 않는 좌석 예외 처리
     if seatId not in seats:
         return jsonify({"message": "존재하지 않는 좌석입니다."}), 404
-        
-    # 이미 비어 있는 자리라면 반납할 필요 없음
     if seats[seatId]["status"] == "AVAILABLE":
         return jsonify({"message": "이미 반납되었거나 사용 중이지 않은 좌석입니다."}), 400
 
-    # 반납 성공 처리 - 좌석 정보를 초기 상태로 리셋
     seats[seatId]["status"] = "AVAILABLE"
     seats[seatId]["userId"] = None
     seats[seatId]["awayChangedAt"] = None
-    
-    # 변경된 데이터를 파일에 저장
+    seats[seatId]["alertSentAt"] = None
     save_seats(seats)
-    
-    return jsonify({
-        "message": f"{seatId}번 좌석 반납이 완료되었습니다.",
-        "seat": seats[seatId]
-    }), 200
+    return jsonify({"message": f"{seatId}번 좌석 반납이 완료되었습니다.", "seat": seats[seatId]}), 200
 
-# 4. 자리 연장 기능 (PATCH /api/me/seats/<seatId>/rentals/extend)
+# 4. 사용자가 알람창에서 [계속 사용]을 선택했을 때 호출할 통로 (PATCH 추가)
+@app.route('/api/me/seats/<seatId>/rentals/keep', methods=['PATCH'])
+def keep_seat(seatId):
+    seats = load_seats()
+    if seatId not in seats:
+        return jsonify({"message": "존재하지 않는 좌석입니다."}), 404
+    
+    # 알람이 간 상태에서만 '계속 사용' 수락 가능
+    if seats[seatId]["status"] != "AWAY_ALERTED":
+        return jsonify({"message": "알람 응답 대상 좌석이 아닙니다."}), 400
+
+    # 상태를 다시 일반 AWAY로 돌려놓고, 알람 발송 시간만 리셋 (최초 비워진 시간 awayChangedAt은 그대로 유지)
+    seats[seatId]["status"] = "AWAY"
+    seats[seatId]["alertSentAt"] = None
+    save_seats(seats)
+    return jsonify({"message": f"{seatId}번 좌석 계속 사용이 선택되었습니다. (최대 1시간 30분 감시 유지)", "seat": seats[seatId]}), 200
+
+# 5. 시간 연장 기능 (PATCH)
 @app.route('/api/me/seats/<seatId>/rentals/extend', methods=['PATCH'])
 def extend_seat(seatId):
     seats = load_seats()
-    
-    # 존재하지 않는 좌석 예외 처리
     if seatId not in seats:
         return jsonify({"message": "존재하지 않는 좌석입니다."}), 404
-        
-    # 대여 중인 자리가 아니면 연장할 수 없음
-    if seats[seatId]["status"] != "OCCUPIED":
-        return jsonify({"message": "대여 중인 좌석이 아니라서 연장할 수 없습니다."}), 400
+    if seats[seatId]["status"] not in ["OCCUPIED", "AWAY"]:
+        return jsonify({"message": "연장할 수 없는 상태의 좌석입니다."}), 400
 
-    # 테스트를 위해 기존 남은 시간에 30분을 더해주는 임시 로직
-    # 만약 기존에 값이 없었다면 기본 180분(3시간)에서 시작
     current_minutes = seats[seatId].get("remainingMinutes", 180)
     extended_minutes = current_minutes + 30
-    
-    # 변경된 데이터를 파일에 저장
     seats[seatId]["remainingMinutes"] = extended_minutes
     save_seats(seats)
-    
-    return jsonify({
-        "message": f"{seatId}번 좌석 시간이 30분 연장되었습니다.",
-        "remainingMinutes": extended_minutes,
-        "seat": seats[seatId]
-    }), 200
+    return jsonify({"message": f"{seatId}번 좌석 시간이 30분 연장되었습니다.", "remainingMinutes": extended_minutes}), 200
 
-# 5-1. AI가 백엔드에게 "이 사람 자리에 없음" 신호 보내는 통로 (POST)
-@app.route('/internal/seats/event', methods=['POST'])
-def handle_ai_event():
-    data = request.json  # AI가 보낸 데이터 받기
-    seatId = str(data.get("seatId"))
-    event_type = data.get("eventType") # USING 또는 AWAY
-    
-    seats = load_seats()
-    if seatId not in seats:
-        return jsonify({"message": "존재하지 않는 좌석입니다."}), 404
+
+# 6-1. MQTT 연결 및 수신
+def on_connect(client, userdata, flags, rc):
+    print(f"[MQTT] 브로커 연결 성공 (코드: {rc})")
+    client.subscribe(MQTT_TOPIC)
+
+def on_message(client, userdata, msg):
+    try:
+        payload = msg.payload.decode('utf-8')
+        data = json.loads(payload)
         
-    if event_type == "AWAY":
-        seats[seatId]["status"] = "AWAY"
-        # 자리를 비우기 시작한 현재 시각을 글자 형태로 기록 
-        seats[seatId]["awayChangedAt"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    elif event_type == "USING":
-        seats[seatId]["status"] = "OCCUPIED"
-        seats[seatId]["awayChangedAt"] = None
+        seatId = str(data.get("seatId"))
+        event_type = data.get("eventType")
+        detected_at = data.get("detectedAt")
         
-    save_seats(seats)
-    return jsonify({"message": f"{seatId}번 좌석 상태가 {event_type}로 변경되었습니다."}), 200
+        seats = load_seats()
+        if seatId not in seats: return
+
+        if event_type == "AWAY":
+            # 이미 비어있는 상태거나 알람 간 상태면 최초 인지 시간 유지
+            if seats[seatId]["status"] not in ["AWAY", "AWAY_ALERTED"]:
+                seats[seatId]["status"] = "AWAY"
+                seats[seatId]["awayChangedAt"] = detected_at if detected_at else datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        elif event_type == "USING":
+            # 돌아오면 모든 상태 완전 초기화 (정상 이용 중)
+            seats[seatId]["status"] = "OCCUPIED"
+            seats[seatId]["awayChangedAt"] = None
+            seats[seatId]["alertSentAt"] = None
+            
+        save_seats(seats)
+        print(f"[MQTT 반영 완료] 좌석 {seatId}번 -> {event_type}")
+    except Exception as e:
+        print(f"[MQTT 에러]: {e}")
 
 
-# 5-2. 백엔드가 5분마다 자동으로 실행할 정기 순찰 함수 
+# 6-2. 대망의 3단계 자동 순찰 감시 알고리즘 (핵심 로직)
 def check_away_seats():
     with app.app_context():
         seats = load_seats()
         now = datetime.now()
         updated = False
         
-        print(f"[{now.strftime('%H:%M:%S')}] 5분 주기 정기 순찰 중...")
+        print(f"🔍 [{now.strftime('%H:%M:%S')}] 정기 순찰 돌리는 중...")
         
         for seatId, info in seats.items():
-            # 상태가 'AWAY'이고, 자리비움 시작 시간이 기록되어 있다면
-            if info["status"] == "AWAY" and info["awayChangedAt"]:
-                # 기록된 글자 시간을 파이썬이 계산할 수 있는 시간 숫자로 변환
-                away_time = datetime.strptime(info["awayChangedAt"], "%Y-%m-%dT%H:%M:%S")
-                
-                # 자리를 비운 지 1시간(60분)이 넘었는지 계산
-                if now - away_time > timedelta(minutes=60):
-                    print(f"🚨 경고: {seatId}번 좌석 1시간 이상 비어있음! 강제 반납 처리합니다.")
-                    # 알람 모듈 없이 즉시 강제 반납 처리로 간략화
+            status = info["status"]
+            away_str = info.get("awayChangedAt")
+            alert_str = info.get("alertSentAt")
+            
+            if not away_str: continue
+            
+            # 시간 파싱 예외 처리
+            away_time = datetime.strptime(away_str.replace('T', ' ')[:19], "%Y-%m-%d %H:%M:%S")
+            alert_time = datetime.strptime(alert_str.replace('T', ' ')[:19], "%Y-%m-%d %H:%M:%S") if alert_str else None
+
+            # ----------------------------------------------------
+            # [규칙 1] 자리를 비운 지 1시간이 지났을 때 -> 알람 발송 및 상태 변경
+            # 💡 시연 테스트용: 10초 (실제 운영: timedelta(minutes=60))
+            # ----------------------------------------------------
+            if status == "AWAY" and not alert_time:
+                if now - away_time > timedelta(seconds=10): 
+                    print(f"[알람 발송] {seatId}번 사용자에게 스마트폰 알람을 보냅니다: '자리를 계속 사용하시겠습니까?'")
+                    info["status"] = "AWAY_ALERTED"
+                    info["alertSentAt"] = now.strftime("%Y-%m-%dT%H:%M:%S")
+                    updated = True
+
+            # ----------------------------------------------------
+            # [규칙 2] 알람을 보냈는데 10분 동안 묵묵부답일 때 -> 즉시 강제 반납
+            # 💡 시연 테스트용: 10초 (실제 운영: timedelta(minutes=10))
+            # ----------------------------------------------------
+            elif status == "AWAY_ALERTED" and alert_time:
+                if now - alert_time > timedelta(seconds=20):
+                    print(f"[강제 반납 - 미응답] {seatId}번 사용자 10분 동안 응답 없음! 자리를 강제 반납시킵니다.")
                     info["status"] = "AVAILABLE"
                     info["userId"] = None
                     info["awayChangedAt"] = None
+                    info["alertSentAt"] = None
+                    updated = True
+
+            # ----------------------------------------------------
+            # [규칙 3]계속 사용한다 해놓고 총 비워둔 지 1시간 반이 넘었을 때 -> 최종 강제 반납
+            # 💡 시연 테스트용: 30초 (실제 운영: timedelta(minutes=90))
+            # ----------------------------------------------------
+            if status == "AWAY" and alert_str is None: # 알람을 한 번 거쳤다가 계속 사용을 눌러 리셋된 상태
+                if now - away_time > timedelta(seconds=40):
+                    print(f"[강제 반납 - 시간 초과] {seatId}번 자리 비운 지 1시간 30분 초과! 무조건 강제 반납 처리합니다.")
+                    info["status"] = "AVAILABLE"
+                    info["userId"] = None
+                    info["awayChangedAt"] = None
+                    info["alertSentAt"] = None
                     updated = True
                     
         if updated:
             save_seats(seats)
 
-# 5-3. 서버가 켜질 때 5분 타이머 알람시계 작동시키기 
+# 스케줄러 및 MQTT 기동
 scheduler = BackgroundScheduler()
-
-# [방법 A] 실제 발표 및 운영용 (5분 주기)
-# scheduler.add_job(func=check_away_seats, trigger="interval", minutes=5)
-
-# [방법 B] 테스트 및 시연용 (10초 주기) - 현재 활성화됨
-scheduler.add_job(func=check_away_seats, trigger="interval", seconds=10)
-
+scheduler.add_job(func=check_away_seats, trigger="interval", seconds=10) # 10초마다 순찰 돌기
 scheduler.start()
 
+mqtt_client = mqtt.Client()
+mqtt_client.on_connect = on_connect
+mqtt_client.on_message = on_message
+mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+mqtt_client.loop_start()
+
 if __name__ == '__main__':
-    # 5001번으로 고정
     app.run(debug=True, host='0.0.0.0', port=5001, use_reloader=False)
