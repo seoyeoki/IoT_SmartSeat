@@ -3,7 +3,8 @@
     "seatId": 1,
     "status": "OCCUPIED",
     "userId": "22311894",
-    "awayChangedAt": null
+    "awayChangedAt": null,
+    "remainingMinutes": 210
   },
   "2": {
     "seatId": 2,
