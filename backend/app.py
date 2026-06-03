@@ -1,5 +1,7 @@
 from flask import Flask, jsonify, request
 import json
+from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
@@ -38,7 +40,7 @@ def rent_seat(seatId):
     if seats[seatId]["status"] != "AVAILABLE":
         return jsonify({"message": "이미 사용 중인 좌석입니다."}), 400
 
-    # [대여 성공 처리] 좌석 상태를 변경
+    # 대여 성공 처리 - 좌석 상태를 변경
     seats[seatId]["status"] = "OCCUPIED"
     seats[seatId]["userId"] = MOCK_USER["userId"] # 가정한 사용자 학번 주입
     
@@ -104,6 +106,62 @@ def extend_seat(seatId):
         "seat": seats[seatId]
     }), 200
 
+# 5-1. AI가 백엔드에게 "이 사람 자리에 없음" 신호 보내는 통로 (POST)
+@app.route('/internal/seats/event', methods=['POST'])
+def handle_ai_event():
+    data = request.json  # AI가 보낸 데이터 받기
+    seatId = str(data.get("seatId"))
+    event_type = data.get("eventType") # USING 또는 AWAY
+    
+    seats = load_seats()
+    if seatId not in seats:
+        return jsonify({"message": "존재하지 않는 좌석입니다."}), 404
+        
+    if event_type == "AWAY":
+        seats[seatId]["status"] = "AWAY"
+        # 자리를 비우기 시작한 현재 시각을 글자 형태로 기록 
+        seats[seatId]["awayChangedAt"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    elif event_type == "USING":
+        seats[seatId]["status"] = "OCCUPIED"
+        seats[seatId]["awayChangedAt"] = None
+        
+    save_seats(seats)
+    return jsonify({"message": f"{seatId}번 좌석 상태가 {event_type}로 변경되었습니다."}), 200
+
+
+# 5-2. 백엔드가 5분마다 자동으로 실행할 정기 순찰 함수 
+def check_away_seats():
+    with app.app_context():
+        seats = load_seats()
+        now = datetime.now()
+        updated = False
+        
+        print(f"[{now.strftime('%H:%M:%S')}] 5분 주기 정기 순찰 중...")
+        
+        for seatId, info in seats.items():
+            # 상태가 'AWAY'이고, 자리비움 시작 시간이 기록되어 있다면
+            if info["status"] == "AWAY" and info["awayChangedAt"]:
+                # 기록된 글자 시간을 파이썬이 계산할 수 있는 시간 숫자로 변환
+                away_time = datetime.strptime(info["awayChangedAt"], "%Y-%m-%dT%H:%M:%S")
+                
+                # 자리를 비운 지 1시간(60분)이 넘었는지 계산
+                if now - away_time > timedelta(minutes=60):
+                    print(f"🚨 경고: {seatId}번 좌석 1시간 이상 비어있음! 강제 반납 처리합니다.")
+                    # 알람 모듈 없이 즉시 강제 반납 처리로 간략화
+                    info["status"] = "AVAILABLE"
+                    info["userId"] = None
+                    info["awayChangedAt"] = None
+                    updated = True
+                    
+        if updated:
+            save_seats(seats)
+
+# 5-3. 서버가 켜질 때 5분 타이머 알람시계 작동시키기 
+scheduler = BackgroundScheduler()
+# 실제 서비스 시에는 minutes=5 로 설정해야 하지만, 테스트를 위해 10초(seconds=10)마다 돌게 세팅 
+scheduler.add_job(func=check_away_seats, trigger="interval", minutes=5)
+scheduler.start()
+
 if __name__ == '__main__':
     # 5001번으로 고정
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5001, use_reloader=False)

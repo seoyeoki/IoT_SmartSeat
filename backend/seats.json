@@ -1,8 +1,8 @@
 {
   "1": {
     "seatId": 1,
-    "status": "OCCUPIED",
-    "userId": "22311894",
+    "status": "AVAILABLE",
+    "userId": null,
     "awayChangedAt": null,
     "remainingMinutes": 210
   },
