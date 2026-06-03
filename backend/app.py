@@ -160,8 +160,13 @@ def check_away_seats():
 
 # 5-3. 서버가 켜질 때 5분 타이머 알람시계 작동시키기 
 scheduler = BackgroundScheduler()
-# 실제 서비스 시에는 minutes=5 로 설정해야 하지만, 테스트를 위해 10초(seconds=10)마다 돌게 세팅 
-scheduler.add_job(func=check_away_seats, trigger="interval", minutes=5)
+
+# [방법 A] 실제 발표 및 운영용 (5분 주기)
+# scheduler.add_job(func=check_away_seats, trigger="interval", minutes=5)
+
+# [방법 B] 테스트 및 시연용 (10초 주기) - 현재 활성화됨
+scheduler.add_job(func=check_away_seats, trigger="interval", seconds=10)
+
 scheduler.start()
 
 if __name__ == '__main__':
