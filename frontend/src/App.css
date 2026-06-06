@@ -1,0 +1,261 @@
+:root {
+  --primary-color: #3498db;
+  --available-color: #2ecc71;
+  --occupied-color: #e74c3c;
+  --away-color: #f1c40f;
+  --background-color: #f8fafc;
+  --card-background: #ffffff;
+  --text-color: #1e293b;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.app-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.location-tag {
+  display: inline-block;
+  background-color: #e2e8f0;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: bold;
+  margin-top: 6px;
+}
+
+.app-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+.user-id-badge {
+  font-size: 12px;
+  background-color: #cbd5e1;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #334155;
+}
+
+.status-card {
+  background: var(--card-background);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.status-card.empty {
+  color: #64748b;
+  font-style: italic;
+  border: 2px dashed #cbd5e1;
+}
+
+.status-card.active {
+  border-top: 6px solid var(--occupied-color);
+}
+
+.status-card.status-away {
+  border-top: 6px solid var(--away-color);
+  background-color: #fffbeb;
+}
+
+.status-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 0;
+}
+
+.highlight {
+  color: var(--primary-color);
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.time-highlight {
+  color: var(--occupied-color);
+  font-weight: bold;
+  font-size: 20px;
+}
+
+/* 좌석 배치도 그리드 (라운지 형태 구조화) */
+.seat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2열 배치 혹은 5열 자유 구성 가능 */
+  gap: 12px;
+  background: var(--card-background);
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid #e2e8f0;
+}
+
+/* 스마트폰 및 태블릿 화면 최적화 (가로 2열 -> 3열 이상 유연하게 조정 가능) */
+@media (min-width: 480px) {
+  .seat-grid {
+    grid-template-columns: repeat(4, 1fr); /* 4열로 구성하여 시각화 효과 극대화 */
+  }
+}
+
+.seat-box {
+  border: none;
+  border-radius: 8px;
+  padding: 15px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-weight: bold;
+}
+
+.seat-box:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.seat-box.available {
+  background-color: #f0fdf4;
+  color: var(--available-color);
+  border: 1px solid #bbf7d0;
+}
+
+.seat-box.occupied {
+  background-color: #fef2f2;
+  color: var(--occupied-color);
+  border: 1px solid #fecaca;
+  cursor: not-allowed;
+}
+
+/* 본인의 좌석일 때 시각 효과 피드백 */
+.seat-box.occupied[disabled=""] , .seat-box.away[disabled=""] {
+  cursor: pointer !important; /* 내 자리는 클릭되도록 허용 */
+}
+
+.seat-box.away {
+  background-color: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fef3c7;
+  cursor: not-allowed;
+}
+
+.seat-number {
+  font-size: 16px;
+}
+
+.seat-status-text {
+  font-size: 12px;
+}
+
+.seat-time-text {
+  font-size: 11px;
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+/* 버튼 및 공통 컴포넌트 */
+.btn {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-group {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.extend-btn { background-color: #3b82f6; color: white; }
+.return-btn { background-color: var(--occupied-color); color: white; }
+.confirm-btn { background-color: var(--available-color); color: white; }
+.cancel-btn { background-color: #64748b; color: white; }
+.keep-btn { background-color: #0f172a; color: white; }
+
+/* 모달 레이아웃 디자인 */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 85%;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+}
+
+.modal-msg {
+  font-size: 15px;
+  margin: 12px 0;
+  line-height: 1.5;
+}
+
+.sub-text {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.danger-text {
+  color: var(--occupied-color);
+  font-weight: bold;
+}
+
+.modal-btn-group {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.modal-btn-group.vertical {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn.large {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+}
+
+.alert-title {
+  color: #d97706;
+  margin-top: 0;
+}

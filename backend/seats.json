@@ -14,8 +14,8 @@
     "alertSentAt": null
   },
   "3": {
-    "status": "AVAILABLE",
-    "userId": null,
+    "status": "OCCUPIED",
+    "userId": "smartSeat",
     "awayChangedAt": null,
     "remainingMinutes": 180,
     "alertSentAt": null
@@ -35,8 +35,8 @@
     "alertSentAt": null
   },
   "6": {
-    "status": "OCCUPIED",
-    "userId": "smartSeat",
+    "status": "AVAILABLE",
+    "userId": null,
     "awayChangedAt": null,
     "remainingMinutes": 210,
     "alertSentAt": null
