@@ -1,0 +1,63 @@
+{
+  "1": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180,
+    "alertSentAt": null
+  },
+  "2": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  },
+  "3": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  },
+  "4": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  },
+  "5": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  },
+  "6": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  },
+  "7": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  },
+  "8": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  },
+  "9": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  },
+  "10": {
+    "status": "AVAILABLE",
+    "userId": null,
+    "awayChangedAt": null,
+    "remainingMinutes": 180
+  }
+}
