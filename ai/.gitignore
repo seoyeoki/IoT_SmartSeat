@@ -1,0 +1,25 @@
+# Python virtual environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Local runtime data / logs
+seats_roi.json
+*_roi.json
+metrics.csv
+metrics_analysis.png
+auto_roi_preview.jpg
+comparison_results/
+comparison_results/*
+
+# PyTorch/YOLO Weights
+*.pt
+yolov8n.pt
+
+# Large Video Files (Ignored to prevent GitHub 100MB push limit errors)
+# video1.mp4
+# video2.mp4
+
+# OS generated files
+.DS_Store
