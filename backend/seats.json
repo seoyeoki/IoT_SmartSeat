@@ -10,31 +10,36 @@
     "status": "AVAILABLE",
     "userId": null,
     "awayChangedAt": null,
-    "remainingMinutes": 180
+    "remainingMinutes": 210,
+    "alertSentAt": null
   },
   "3": {
     "status": "AVAILABLE",
     "userId": null,
     "awayChangedAt": null,
-    "remainingMinutes": 180
+    "remainingMinutes": 180,
+    "alertSentAt": null
   },
   "4": {
     "status": "AVAILABLE",
     "userId": null,
     "awayChangedAt": null,
-    "remainingMinutes": 180
+    "remainingMinutes": 180,
+    "alertSentAt": null
   },
   "5": {
     "status": "AVAILABLE",
     "userId": null,
     "awayChangedAt": null,
-    "remainingMinutes": 180
+    "remainingMinutes": 180,
+    "alertSentAt": null
   },
   "6": {
-    "status": "AVAILABLE",
-    "userId": null,
+    "status": "OCCUPIED",
+    "userId": "smartSeat",
     "awayChangedAt": null,
-    "remainingMinutes": 180
+    "remainingMinutes": 210,
+    "alertSentAt": null
   },
   "7": {
     "status": "AVAILABLE",
